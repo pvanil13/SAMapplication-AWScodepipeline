@@ -13,7 +13,7 @@ phases:
   build:
     commands:
       - sam package \
-          --s3-bucket $S3_BUCKET \
+          --s3-bucket samtest-bucket2532 \
           --output-template-file packaged.yaml
 artifacts:
   files:
