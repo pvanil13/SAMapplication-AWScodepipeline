@@ -48,14 +48,14 @@ Resources:
                 Category: Source
                 Owner: ThirdParty
                 Provider: GitHub
-                Version: 1
+                Version: 2
               OutputArtifacts:
                 - Name: SourceOutput
               Configuration:
-                Owner: your-github-username
-                Repo: your-repo-name
-                Branch: dev
-                OAuthToken: your-oauth-token
+                Owner: pvanil13
+                Repo: SAMapplication-AWScodepipeline
+                Branch: main
+                OAuthToken: "{{resolve:secretsmanager:github-token:SecretString:token}}"
         - Name: Build
           Actions:
             - Name: CodeBuild
