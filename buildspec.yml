@@ -12,9 +12,9 @@ phases:
       - sam build
   build:
     commands:
-      - sam package \
-          --s3-bucket samtest-bucket2532 \
-          --output-template-file packaged.yaml
+      - echo "S3_BUCKET=$S3_BUCKET"
+      - sam package --s3-bucket $S3_BUCKET --output-template-file packaged.yaml
+
 artifacts:
   files:
     - packaged.yaml
