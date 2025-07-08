@@ -1,0 +1,111 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SAM Template - API Gateway with Lambda Authorizer, DynamoDB, SNS
+
+Globals:
+  Function:
+    Timeout: 10
+    Runtime: python3.11
+
+Resources:
+
+  ### DynamoDB Table ###
+  ObjectsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Objects
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: objectId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: objectId
+          KeyType: HASH
+
+  ### SNS Topic ###
+  ObjectNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: "Object Notifications"
+
+  ### Lambda Authorizer ###
+  AuthorizerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/authorizer/
+      Handler: app.lambda_handler
+
+  ### Store Lambda ###
+  StoreFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/store/
+      Handler: app.lambda_handler
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ObjectsTable
+          TOPIC_ARN: !Ref ObjectNotificationTopic
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ObjectsTable
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt ObjectNotificationTopic.TopicName
+
+  ### Retrieve Lambda ###
+  RetrieveFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/retrieve/
+      Handler: app.lambda_handler
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ObjectsTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ObjectsTable
+
+  ### API Gateway ###
+  MyApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: MyApiWithAuth
+      StageName: dev
+      Auth:
+        DefaultAuthorizer: LambdaTokenAuth
+        AddDefaultAuthorizerToCorsPreflight: false
+        Authorizers:
+          LambdaTokenAuth:
+            FunctionArn: !GetAtt AuthorizerFunction.Arn
+            Identity:
+              Header: Authorization
+
+  ### API Routes ###
+  StoreApi:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/store/
+      Handler: app.lambda_handler
+      Events:
+        StoreEndpoint:
+          Type: Api
+          Properties:
+            Path: /store
+            Method: post
+            RestApiId: !Ref MyApi
+            Auth:
+              Authorizer: LambdaTokenAuth
+
+  RetrieveApi:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/retrieve/
+      Handler: app.lambda_handler
+      Events:
+        RetrieveEndpoint:
+          Type: Api
+          Properties:
+            Path: /retrieve
+            Method: get
+            RestApiId: !Ref MyApi
+            Auth:
+              Authorizer: LambdaTokenAuth
